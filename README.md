@@ -119,6 +119,10 @@ Vagrant.configure("2") do |config|
   end
 end
 
+```
+
+## 🧩 Código del Vagrantfile
+
 ```bash
 #!/bin/bash
 sleep 5
