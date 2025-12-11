@@ -1,30 +1,26 @@
 #!/bin/bash
 sleep 5
 
-# Actualiza sistema y DNS
+#Actualiza sistema y DNS
 echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
 echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
 
-echo "========================================="
-echo "Configurando Servidor Web 2"
-echo "========================================="
-
-# Actualizar sistema
+#Actualizar sistema
 apt-get update
 
-# Instalar Nginx y cliente NFS
+#Instalar Nginx y cliente NFS
 apt-get install -y nginx nfs-common
 
-# Crear punto de montaje para NFS
+#Crear punto de montaje para NFS
 mkdir -p /var/www/html/webapp
 
-# Montar el directorio NFS
+#Montar el directorio NFS
 mount -t nfs 192.168.20.10:/var/www/html/webapp /var/www/html/webapp
 
-# Hacer el montaje permanente
+#Hacer el montaje permanente
 echo "192.168.20.10:/var/www/html/webapp /var/www/html/webapp nfs defaults 0 0" >> /etc/fstab
 
-# Configurar Nginx para usar PHP-FPM remoto
+#Configurar Nginx para usar PHP-FPM remoto
 cat > /etc/nginx/sites-available/webapp << 'EOF'
 server {
     listen 80;
@@ -33,7 +29,7 @@ server {
     root /var/www/html/webapp;
     index index.php index.html index.htm;
     
-    # Logs específicos
+    # Logs especificos
     access_log /var/log/nginx/access.log;
     error_log /var/log/nginx/error.log;
     
@@ -55,17 +51,13 @@ server {
 }
 EOF
 
-# Habilitar el sitio
+#Habilitar el sitio
 ln -sf /etc/nginx/sites-available/webapp /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
-# Verificar configuración de Nginx
+#Verificar configuracion de Nginx
 nginx -t
 
-# Reiniciar Nginx
+#Reiniciar Nginx
 systemctl restart nginx
 systemctl enable nginx
-
-echo "✓ Servidor Web 2 configurado correctamente"
-echo "Montaje NFS: /var/www/html/webapp"
-echo "PHP-FPM remoto: 192.168.20.10:9000"

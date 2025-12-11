@@ -1,26 +1,20 @@
 #!/bin/bash
-
 sleep 5
 
-# Fix DNS
+#DNS
 echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
 echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
 
+#Actualizar sistema
+apt-get update -qq
 
-echo "========================================="
-echo "Configurando Base de Datos 1 (Nodo Galera 1)"
-echo "========================================="
+#Instalar MariaDB Server y Galera
+DEBIAN_FRONTEND=noninteractive apt-get install -y mariadb-server mariadb-client galera-4 rsync
 
-# Actualizar sistema
-apt-get update
-
-# Instalar MariaDB Server y Galera
-apt-get install -y mariadb-server mariadb-client galera-4 rsync
-
-# Detener MariaDB para configurar Galera
+#Detener MariaDB para configurar Galera
 systemctl stop mariadb
 
-# Configurar Galera Cluster
+#Configurar Galera Cluster
 cat > /etc/mysql/mariadb.conf.d/60-galera.cnf << 'EOF'
 [mysqld]
 binlog_format=ROW
@@ -44,30 +38,38 @@ wsrep_node_address="192.168.40.11"
 wsrep_node_name="db1Mario"
 EOF
 
-# Inicializar el cluster (solo en el primer nodo)
+# Inicializar el cluster 
 galera_new_cluster
 
-# Esperar a que el servicio esté listo
-sleep 10
+# Esperar a que el servicio este listo
+sleep 15
 
-# Crear base de datos y usuario para la aplicación
+#Verificar que MariaDB esta corriendo
+systemctl status mariadb --no-pager
+
+# Crear base de datos y usuario para la aplicacion
 mysql << 'EOSQL'
+-- Crear base de datos
 CREATE DATABASE IF NOT EXISTS lamp_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'lamp_user'@'%' IDENTIFIED BY 'lamp_password';
-GRANT ALL PRIVILEGES ON lamp_db.* TO 'lamp_user'@'%';
 
--- Usuario para health checks de HAProxy
-CREATE USER IF NOT EXISTS 'haproxy'@'192.168.30.10' IDENTIFIED BY '';
-GRANT USAGE ON *.* TO 'haproxy'@'192.168.30.10';
+-- Crear usuario para la aplicacion
+CREATE USER IF NOT EXISTS 'mario'@'%' IDENTIFIED BY '1234';
+GRANT ALL PRIVILEGES ON lamp_db.* TO 'mario'@'%';
+
+-- Usuario para health checks de HAProxy 
+CREATE USER IF NOT EXISTS 'haproxy'@'%' IDENTIFIED BY '';
+GRANT USAGE ON *.* TO 'haproxy'@'%';
+
+-- Crear usuario root remoto para administracion
+CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'root';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
 
 FLUSH PRIVILEGES;
+
+-- Verificar usuarios creados
+SELECT User, Host FROM mysql.user WHERE User IN ('lamp_user', 'haproxy', 'root');
 EOSQL
 
-# Habilitar MariaDB en el arranque
+#Habilitar MariaDB en el arranque
 systemctl enable mariadb
-
-echo ""
-echo "✅ Base de Datos 1 configurada correctamente"
-echo "   - Base de datos: lamp_db"
-echo "   - Usuario: lamp_user"
-echo "   - Cluster: galera_cluster"
+mysql -e "SHOW STATUS LIKE 'wsrep_cluster_size';" 2>/dev/null 

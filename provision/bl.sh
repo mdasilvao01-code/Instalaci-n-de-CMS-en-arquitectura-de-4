@@ -1,22 +1,18 @@
 #!/bin/bash
 sleep 5
 
-# Fix DNS
+#Arregla el DNS
 echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
 echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
 
 
-echo "========================================="
-echo "Configurando Balanceador de Carga Frontend"
-echo "========================================="
-
-# Actualizar sistema
+#Actualizar sistema
 apt-get update
 
-# Instalar Nginx
+#Instalar Nginx
 apt-get install -y nginx
 
-# Configurar Nginx como balanceador de carga
+#Configurar Nginx como balanceador de carga
 cat > /etc/nginx/sites-available/balancer << 'EOF'
 upstream backend_servers {
     # Algoritmo de balanceo: round-robin (por defecto)
@@ -37,7 +33,7 @@ server {
     location / {
         proxy_pass http://backend_servers;
         
-        # Headers para mantener información del cliente
+        # Headers para mantener informacion del cliente
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -58,16 +54,13 @@ server {
 }
 EOF
 
-# Habilitar el sitio
+#Habilitar el sitio
 ln -sf /etc/nginx/sites-available/balancer /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
-# Verificar configuración
+#Verificar configuracion
 nginx -t
 
-# Reiniciar Nginx
+#Reiniciar Nginx
 systemctl restart nginx
 systemctl enable nginx
-
-echo "✓ Balanceador de carga configurado correctamente"
-echo "Backend servers: 192.168.20.11, 192.168.20.12"

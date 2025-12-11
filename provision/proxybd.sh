@@ -2,24 +2,20 @@
 set -e
 sleep 7
 
-# proxyBBDD.sh - HAProxy para MySQL
+#proxyBBDD.sh - HAProxy para MySQL
 
-# Fix DNS
+#DNS
 echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
 echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf >/dev/null
 
 
-echo "========================================="
-echo "Configurando Proxy de Base de Datos (HAProxy)"
-echo "========================================="
-
-# Actualizar sistema
+#Actualizar sistema
 apt-get update
 
-# Instalar HAProxy
+#Instalar HAProxy
 apt-get install -y haproxy
 
-# Configurar HAProxy para MariaDB
+#Configurar HAProxy para MariaDB
 cat > /etc/haproxy/haproxy.cfg << 'EOF'
 global
     log /dev/log local0
@@ -36,11 +32,12 @@ defaults
     mode tcp
     option tcplog
     option dontlognull
-    timeout connect 5000
-    timeout client 50000
-    timeout server 50000
+    timeout connect 10s
+    timeout client 1h
+    timeout server 1h
 
 # Frontend para MariaDB (puerto 3306)
+# Escucha en TODAS las interfaces para recibir conexiones desde cualquier red
 frontend mariadb_frontend
     bind *:3306
     mode tcp
@@ -50,12 +47,15 @@ frontend mariadb_frontend
 backend mariadb_backend
     mode tcp
     balance roundrobin
-    option mysql-check user haproxy
+    option tcp-check
     
-    server db1Mario 192.168.40.11:3306 check
-    server db2Mario 192.168.40.12:3306 check
+    # Health check mas permisivo
+    tcp-check connect
+    
+    server db1Mario 192.168.40.11:3306 check inter 5s rise 2 fall 3
+    server db2Mario 192.168.40.12:3306 check inter 5s rise 2 fall 3
 
-# Estadísticas de HAProxy (opcional)
+# Estadisticas de HAProxy
 listen stats
     bind *:8080
     mode http
@@ -63,13 +63,19 @@ listen stats
     stats uri /stats
     stats refresh 10s
     stats admin if TRUE
+    stats auth admin:admin
 EOF
 
-# Crear usuario en MariaDB para health checks
-# Este comando se ejecutará después de que los nodos estén disponibles
-# Por ahora, reiniciamos HAProxy
-systemctl restart haproxy
+#Habilitar HAProxy
 systemctl enable haproxy
 
-echo "✓ Proxy de Base de Datos configurado correctamente"
-echo "Nota: Crear usuario 'haproxy'@'192.168.30.10' en MariaDB manualmente"
+#Reiniciar HAProxy
+systemctl restart haproxy
+
+#Esperar a que HAProxy este listo
+sleep 5
+
+#Verificar estado
+systemctl status haproxy --no-pager
+
+
