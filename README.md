@@ -1,148 +1,113 @@
-# Proyecto de Infraestructura con Vagrant, MariaDB Galera, HAProxy, NFS, PHP-FPM y Nginx
+# 📘 Proyecto de Infraestructura con Vagrant
 
-## 📁 Contenido del repositorio GitHub
-
-El repositorio incluirá:
-
-- **Documento técnico `README.md`**
-- **Fichero `Vagrantfile`**
-- **Ficheros de provisionamiento**
-  - provision/bd.sh
-  - provision/bd2.sh
-  - provision/proxybd.sh
-  - provision/nfs.sh
-  - provision/web.sh
-  - provision/web2.sh
-  - provision/bl.sh
-- **Capturas de pantalla del funcionamiento de la aplicación** (carpeta `/screenshots`)
+## 📑 Índice
+1. [Introducción del Proyecto](#introducción-del-proyecto)
+2. [Arquitectura de la Infraestructura](#arquitectura-de-la-infraestructura)
+3. [Direccionamiento IP Utilizado](#direccionamiento-ip-utilizado)
+4. [Scripts de Provisionamiento](#scripts-de-provisionamiento)
+   - 4.1 [Balanceador Nginx (bl.sh)](#41-balanceador-nginx-blsh)
+5. [Vídeo Demostrativo](#vídeo-demostrativo)
 
 ---
 
-## 📌 Requisitos IMPRESCINDIBLES
+## Introducción del Proyecto
 
-### 📝 Documento técnico (README.md)
+Este proyecto despliega una infraestructura multi-nodo usando Vagrant y Debian Bookworm.  
+El objetivo es simular un entorno de producción con alta disponibilidad, donde cada componente se distribuye en distintas máquinas virtuales para obtener redundancia, balanceo de carga y segmentación de servicios.
 
-Debe contener:
+La infraestructura incluye:
 
-### 1. Índice  
-Listado de todas las secciones.
-
-### 2. Introducción  
-Explicar:
-
-- Qué se va a construir.
-- Qué tecnologías se van a utilizar.
-- Descripción de la infraestructura.
-- Explicación del direccionamiento IP.
-
-### 3. Instalaciones y configuraciones paso a paso  
-Explicar detalladamente:
-
-- Configuración de cada máquina.
-- Instalación de MariaDB Galera.
-- Configuración del clúster.
-- HAProxy como balanceador de BD.
-- NFS + PHP-FPM como servidor compartido.
-- Nginx como balanceador front-end.
-- Los dos servidores web.
-
-Debe incluir:
-
-- Capturas de pantalla
-- Código (trozos de configuración)
-- Comandos usados  
-- Explicaciones claras
-
-### 4. Redacción impecable  
-- No puede haber faltas de ortografía.  
-- Expresión clara y técnica.  
+- **Clúster de base de datos MariaDB Galera** (2 nodos)
+- **Balanceo de carga de base de datos mediante HAProxy**
+- **Servidor NFS junto a PHP-FPM**
+- **Dos servidores web replicados**
+- **Balanceador Nginx frontal**
+- **Redes privadas separadas**
+- **Provisionamiento automatizado mediante scripts Bash**
 
 ---
 
-## 🧩 Código del Vagrantfile
+## Arquitectura de la Infraestructura
 
-```ruby
-Vagrant.configure("2") do |config|
-  config.vm.box = "debian/bookworm64"
+La arquitectura se compone de varias redes que permiten aislar servicios y mejorar la seguridad:
 
-  # Base de datos 1 (MariaDB Galera Nodo 1)
-  config.vm.define "db1Mario" do |db1|
-    db1.vm.hostname = "db1Mario"
-    db1.vm.network "private_network", ip: "192.168.40.11"
-    db1.vm.provision "shell", path: "provision/bd.sh"
-  end
+| Red | Función | Equipos |
+|-----|---------|---------|
+| 192.168.10.0/24 | Acceso frontal | Balanceador Nginx |
+| 192.168.20.0/24 | Red Web | Web1, Web2, NFS |
+| 192.168.30.0/24 | Red App / Proxy BD | NFS, HAProxy |
+| 192.168.40.0/24 | Red Base de Datos | DB1, DB2, HAProxy |
 
-  # Base de datos 2 (MariaDB Galera Nodo 2)
-  config.vm.define "db2Mario" do |db2|
-    db2.vm.hostname = "db2Mario"
-    db2.vm.network "private_network", ip: "192.168.40.12"
-    db2.vm.provision "shell", path: "provision/bd2.sh"
-  end
+Este diseño permite separar las capas de la aplicación y evita que componentes sensibles estén expuestos.
 
-  # Proxy de base de datos (HAProxy)
-  config.vm.define "proxyBDMario" do |proxy|
-    proxy.vm.hostname = "proxyBDMario"
-    proxy.vm.network "private_network", ip: "192.168.30.10"
-    proxy.vm.network "private_network", ip: "192.168.40.10"
-    proxy.vm.provision "shell", path: "provision/proxybd.sh"
-  end
+---
 
-  # Servidor NFS con PHP-FPM
-  config.vm.define "serverNFSMario" do |nfs|
-    nfs.vm.hostname = "serverNFSMario"
-    nfs.vm.network "private_network", ip: "192.168.20.10"
-    nfs.vm.network "private_network", ip: "192.168.30.11"
-    nfs.vm.provision "shell", path: "provision/nfs.sh"
-  end
+## Direccionamiento IP Utilizado
 
-  # Servidor Web 1
-  config.vm.define "serverweb1Mario" do |web1|
-    web1.vm.hostname = "serverweb1Mario"
-    web1.vm.network "private_network", ip: "192.168.20.11"
-    web1.vm.provision "shell", path: "provision/web.sh"
-  end
+Cada máquina dispone de una IP concreta según su función:
 
-  # Servidor Web 2
-  config.vm.define "serverweb2Mario" do |web2|
-    web2.vm.hostname = "serverweb2Mario"
-    web2.vm.network "private_network", ip: "192.168.20.12"
-    web2.vm.provision "shell", path: "provision/web2.sh"
-  end
+- **Balanceador Nginx:**  
+  - 192.168.10.10  
+  - 192.168.20.13  
 
-  # Balanceador Nginx front-end
-  config.vm.define "balanceadorMario" do |bl|
-    bl.vm.hostname = "balanceadorMario"
-    bl.vm.network "private_network", ip: "192.168.10.10"
-    bl.vm.network "private_network", ip: "192.168.20.13"
-    bl.vm.network "forwarded_port", guest: 80, host: 8080
-    bl.vm.provision "shell", path: "provision/bl.sh"
-  end
-end
+- **Servidor Web 1:**  
+  - 192.168.20.11  
 
-```
+- **Servidor Web 2:**  
+  - 192.168.20.12  
 
-## 🧩 Código del bl (balanceador)
+- **Servidor NFS:**  
+  - 192.168.20.10  
+  - 192.168.30.11  
+
+- **HAProxy Proxy BD:**  
+  - 192.168.30.10  
+  - 192.168.40.10  
+
+- **DB1 (Galera nodo 1):**  
+  - 192.168.40.11  
+
+- **DB2 (Galera nodo 2):**  
+  - 192.168.40.12  
+
+---
+
+# Scripts de Provisionamiento
+
+En esta sección se incluyen los scripts utilizados por Vagrant para provisionar los distintos servicios.
+
+---
+
+## 4.1 Balanceador Nginx (bl.sh)
+
+### Explicación
+
+Este script realiza las siguientes tareas:
+
+- Configura los DNS del sistema.
+- Actualiza los repositorios de Debian.
+- Instala Nginx.
+- Configura un **balanceador round-robin** dirigido a los dos servidores web.
+- Agrega un endpoint de health-check.
+- Habilita el sitio configurado.
+- Reinicia y habilita el servicio Nginx.
+
+---
+
+### Código del Script Balanceador (bl)
 
 ```bash
 #!/bin/bash
 sleep 5
 
-# Arregla el DNS
 echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
 echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
 
-# Actualizar sistema
 apt-get update
-
-# Instalar Nginx
 apt-get install -y nginx
 
-# Configurar Nginx como balanceador de carga
 cat > /etc/nginx/sites-available/balancer << 'EOF'
 upstream backend_servers {
-    # Algoritmo de balanceo: round-robin (por defecto)
-    # Otras opciones: least_conn, ip_hash
-    
     server 192.168.20.11:80 max_fails=3 fail_timeout=30s;
     server 192.168.20.12:80 max_fails=3 fail_timeout=30s;
 }
@@ -150,27 +115,22 @@ upstream backend_servers {
 server {
     listen 80;
     server_name _;
-    
-    # Logs del balanceador
+
     access_log /var/log/nginx/access.log;
     error_log /var/log/nginx/error.log;
-    
+
     location / {
         proxy_pass http://backend_servers;
-        
-        # Headers para mantener información del cliente
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # Timeouts
+
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
     }
-    
-    # Health check endpoint (opcional)
+
     location /nginx-health {
         access_log off;
         return 200 "healthy\n";
@@ -179,20 +139,19 @@ server {
 }
 EOF
 
-# Habilitar el sitio
 ln -sf /etc/nginx/sites-available/balancer /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
-# Verificar configuración
 nginx -t
 
-# Reiniciar Nginx
 systemctl restart nginx
 systemctl enable nginx
 
 ```
 
-## 🧩 Código del NFS (NFS)
+---
+
+### Código del Script NFS (nfs)
 
 ```bash
 
@@ -272,8 +231,9 @@ chown -R www-data:www-data /var/www/html/webapp
 chmod -R 755 /var/www/html/webapp
 
 ```
+---
 
-## 🧩 Código del HAPROXY (haproxy)
+### Código del Script HAPROXY (haproxy)
 
 ```bash
 
@@ -359,7 +319,9 @@ systemctl status haproxy --no-pager
 
 ```
 
-## 🧩 Código del WEB (web1)
+---
+
+### Código del Script WEB (web1)
 
 ```bash
 
@@ -428,8 +390,9 @@ systemctl restart nginx
 systemctl enable nginx
 
 ```
+---
 
-## 🧩 Código del WEB (web2)
+### Código del Script WEB (web2)
 
 ```bash
 
@@ -500,7 +463,9 @@ systemctl enable nginx
 
 ```
 
-## 🧩 Código del Base de datos (bd1)
+---
+
+### Código del Script WEB (web2)
 
 ```bash
 
@@ -582,7 +547,93 @@ mysql -e "SHOW STATUS LIKE 'wsrep_cluster_size';" 2>/dev/null
 
 ```
 
-## 🧩 Código del Base de datos (bd2)
+---
+
+### Código del Script DB (db1)
+
+```bash
+
+#!/bin/bash
+sleep 5
+
+#DNS
+echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
+echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
+
+#Actualizar sistema
+apt-get update -qq
+
+#Instalar MariaDB Server y Galera
+DEBIAN_FRONTEND=noninteractive apt-get install -y mariadb-server mariadb-client galera-4 rsync
+
+#Detener MariaDB para configurar Galera
+systemctl stop mariadb
+
+#Configurar Galera Cluster
+cat > /etc/mysql/mariadb.conf.d/60-galera.cnf << 'EOF'
+[mysqld]
+binlog_format=ROW
+default-storage-engine=innodb
+innodb_autoinc_lock_mode=2
+bind-address=0.0.0.0
+
+# Galera Provider Configuration
+wsrep_on=ON
+wsrep_provider=/usr/lib/galera/libgalera_smm.so
+
+# Galera Cluster Configuration
+wsrep_cluster_name="galera_cluster"
+wsrep_cluster_address="gcomm://192.168.40.11,192.168.40.12"
+
+# Galera Synchronization Configuration
+wsrep_sst_method=rsync
+
+# Galera Node Configuration
+wsrep_node_address="192.168.40.11"
+wsrep_node_name="db1Mario"
+EOF
+
+# Inicializar el cluster 
+galera_new_cluster
+
+# Esperar a que el servicio este listo
+sleep 15
+
+#Verificar que MariaDB esta corriendo
+systemctl status mariadb --no-pager
+
+# Crear base de datos y usuario para la aplicacion
+mysql << 'EOSQL'
+-- Crear base de datos
+CREATE DATABASE IF NOT EXISTS lamp_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Crear usuario para la aplicacion
+CREATE USER IF NOT EXISTS 'mario'@'%' IDENTIFIED BY '1234';
+GRANT ALL PRIVILEGES ON lamp_db.* TO 'mario'@'%';
+
+-- Usuario para health checks de HAProxy 
+CREATE USER IF NOT EXISTS 'haproxy'@'%' IDENTIFIED BY '';
+GRANT USAGE ON *.* TO 'haproxy'@'%';
+
+-- Crear usuario root remoto para administracion
+CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'root';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+
+FLUSH PRIVILEGES;
+
+-- Verificar usuarios creados
+SELECT User, Host FROM mysql.user WHERE User IN ('mario', 'haproxy', 'root');
+EOSQL
+
+#Habilitar MariaDB en el arranque
+systemctl enable mariadb
+mysql -e "SHOW STATUS LIKE 'wsrep_cluster_size';" 2>/dev/null 
+
+```
+
+---
+
+### Código del Script DB (db2)
 
 ```bash
 
@@ -640,7 +691,7 @@ systemctl status mariadb --no-pager
 systemctl enable mariadb
 mysql -e "SHOW STATUS LIKE 'wsrep_%';" | grep -E "(wsrep_cluster_size|wsrep_cluster_status|wsrep_ready|wsrep_connected)" 
 
-
+```
 
 
 
