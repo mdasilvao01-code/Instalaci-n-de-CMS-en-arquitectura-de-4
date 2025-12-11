@@ -5,8 +5,7 @@
 2. [Arquitectura de la Infraestructura](#arquitectura-de-la-infraestructura)
 3. [Direccionamiento IP Utilizado](#direccionamiento-ip-utilizado)
 4. [Scripts de Provisionamiento](#scripts-de-provisionamiento)
-   - 4.1 [Balanceador Nginx (bl.sh)](#41-balanceador-nginx-blsh)
-5. [Vídeo Demostrativo](#vídeo-demostrativo)
+5. [Vídeo Demostrativo](#VÍDEO)
 
 ---
 
