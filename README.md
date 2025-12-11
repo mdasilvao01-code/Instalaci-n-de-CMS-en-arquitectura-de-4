@@ -694,5 +694,8 @@ mysql -e "SHOW STATUS LIKE 'wsrep_%';" | grep -E "(wsrep_cluster_size|wsrep_clus
 ```
 
 
+### VIDEO
+
+
 
 
