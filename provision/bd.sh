@@ -67,7 +67,7 @@ GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 
 -- Verificar usuarios creados
-SELECT User, Host FROM mysql.user WHERE User IN ('lamp_user', 'haproxy', 'root');
+SELECT User, Host FROM mysql.user WHERE User IN ('mario', 'haproxy', 'root');
 EOSQL
 
 #Habilitar MariaDB en el arranque

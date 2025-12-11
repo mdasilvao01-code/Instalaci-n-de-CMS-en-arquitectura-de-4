@@ -40,10 +40,10 @@ wsrep_node_name="db2Mario"
 EOF
 
 
-# Iniciar MariaDB 
+#Iniciar MariaDB 
 systemctl start mariadb
 
-#Esperar sincronización
+#Esperar sincronizacion
 sleep 15
 Verificar estado
 systemctl status mariadb --no-pager

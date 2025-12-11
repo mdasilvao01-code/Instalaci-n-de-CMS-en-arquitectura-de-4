@@ -51,13 +51,13 @@ server {
 }
 EOF
 
-# Habilitar el sitio
+#Habilitar el sitio
 ln -sf /etc/nginx/sites-available/webapp /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
-# Verificar configuracion de Nginx
+#Verificar configuracion de Nginx
 nginx -t
 
-# Reiniciar Nginx
+#Reiniciar Nginx
 systemctl restart nginx
 systemctl enable nginx
