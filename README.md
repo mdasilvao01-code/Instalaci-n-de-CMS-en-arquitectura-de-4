@@ -683,7 +683,7 @@ systemctl start mariadb
 
 #Esperar sincronizacion
 sleep 15
-Verificar estado
+#Verificar estado
 systemctl status mariadb --no-pager
 
 #Habilitar MariaDB en el arranque
